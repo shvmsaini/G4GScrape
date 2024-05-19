@@ -18,18 +18,29 @@ class Controller {
 
     @GetMapping("/content/{url}")
     fun getContent(@PathVariable("url") url: String): String {
+        val url1: String = if (url.last() == '/') url.substring(0, url.lastIndex - 1) else url
         // Instantiate the client
         val client = WebClient()
         client.options.isCssEnabled = false
         client.options.isJavaScriptEnabled = false
 
         // Set up the URL with the search term and send the request
-        val searchUrl = "https://www.geeksforgeeks.org/" + URLEncoder.encode(url, "UTF-8")
+        val searchUrl = "https://www.geeksforgeeks.org/" + URLEncoder.encode(url1, "UTF-8")
         val page = client.getPage<HtmlPage>(searchUrl)
         page.asXml()
-        val items = page.getByXPath<Any?>("//article") as List<HtmlElement?>
+        val items = page.getByXPath<Any?>("//article") as List<*>
         if (items.isNotEmpty()) {
-            return items[0]?.asXml() ?: ""
+            // Removing Unnecessary stuff
+            val elements = page.getByXPath<Any?>("//*[@id]") as List<*>
+            elements.forEach { element ->
+                val elementId = (element as HtmlElement).id
+                if (elementId != null && elementId.contains(Regex("GFG|G4G|myDropdown"))) {
+                    element.parentNode.removeChild(element)
+                }
+            }
+
+            val mainPage = items[0] as? HtmlElement
+            return mainPage?.asXml() ?: "Whoops! Some error."
         }
         return "Not found."
     }
